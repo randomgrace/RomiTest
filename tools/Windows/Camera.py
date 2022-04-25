@@ -1,9 +1,11 @@
 #! python3
 
 import sys, socket
-from fabric import Connection
 from optparse import OptionParser
-
+from fabric import Connection
+# we use Connection to launch the gstreamer remotely on the raspberry pi over SSH
+# to do this we cannot use the default SSH port 22 as it's blocked by firewall on the FMS
+# So we will depend on seting up sshd on the pi to use port 5800 instead
 
 display_info = {
         'front':
@@ -14,6 +16,7 @@ display_info = {
             'port':     "5805",
             'camip':    "10.49.15.12",
             'user':     "pi",
+            'ssh':      "5800",
             'active':   "true"
             },
         'back':
@@ -24,6 +27,7 @@ display_info = {
             'port':     "5807",
             'camip':    "10.49.15.13",
             'user':     "pi",
+            'ssh':      "5800",
             'active':   "false"
             },
         'up':
@@ -34,16 +38,18 @@ display_info = {
             'port':     "5806",
             'camip':    "10.49.15.11",
             'user':     "pi",
+            'ssh':      "5800",
             'active':   "true"
             },
         'romi':
             {
             'name':     "Romi",
             'coords':   [600, 600],
-            'size':     [640,480],
-            'port':     "5820",
-            'camip':    "10.0.0.160",
+            'size':     [640, 480],
+            'port':     "5808",
+            'camip':    "10.49.15.15",
             'user':     "pi",
+            'ssh':      "5800",
             'active':   "true"
             }
         }
@@ -74,28 +80,32 @@ def get_ip():
         s.close()
     return IP
 
-def startCamera(port='5805', camera_ip='10.49.15.12', user='pi'):
+def startCamera(port='5805', camera_ip='10.49.15.12', user='pi', ssh='5800'):
     """ Start a camera process on a Raspberry Pi camera """
     my_ip = get_ip()
     command = "./gstreamit.sh %s %s > /dev/null 2>&1 &" % (my_ip, port)
-    result = Connection(camera_ip,user=user).run(command, hide=True)
+    result = Connection(camera_ip,user=user,port=ssh).run(command, hide=False)
     msg = "Ran {0.command!r} on {0.connection.host}, got stdout:\n{0.stdout}"
     print(msg.format(result))
 
-def killCamera(camera_ip='10.49.15.12', user='pi'):
+def killCamera(camera_ip='10.49.15.12', user='pi', ssh='5800'):
     """ Kill the camera process """
     command = "./kill_gstream.sh > /dev/null 2>&1 &"
-    result = Connection(camera_ip,user=user).run(command, hide=True)
+    result = Connection(camera_ip,user=user,port=ssh).run(command, hide=False)
     msg = "Ran {0.command!r} on {0.connection.host}, got stdout:\n{0.stdout}"
     print(msg.format(result))
 
-def checkCamera(camera_ip='10.49.15.12', user='pi', name='FrontCam'):
+def checkCamera(camera_ip='10.49.15.12', user='pi', name='FrontCam', ssh='5800'):
     """ Check the camera process """
+    is_running = False
     command = "./check_gstream.sh"
-    result = Connection(camera_ip,user=user).run(command, hide=True)
+    result = Connection(camera_ip,user=user,port=ssh).run(command, hide=False)
     msg = "{0.stdout}"
     print("%s: " % name)
     print(msg.format(result))
+    if result == "Running":
+        is_running = True
+    return is_running
 
 
 usage="""
@@ -105,6 +115,17 @@ usage="""
 def main(argv):
 
 
+    # Check that the right static IP has been set
+    my_ip = get_ip()
+    if "49.15" not in my_ip:
+        print("********************************************************************")
+        print("      Incorrect ip: %s" % my_ip)
+        print("      Make sure you set up the Wi-Fi connection!!!")
+        print("********************************************************************")
+
+        input("Enter any key")
+        sys.exit()
+
     parser = OptionParser(usage=usage)
     parser.add_option('-p', dest='port_override', type='string',
             help='Override the default port for video for selected camera')
@@ -112,6 +133,8 @@ def main(argv):
             help='Override the default IP address for the selected camera')
     parser.add_option('-u', dest='user_override', type='string',
             help='Override the default user for the selected camera')
+    parser.add_option('-s', dest='ssh_override', type='string',
+            help='Override the default SSH port for the selected camera')
 
     (options, args) = parser.parse_args()
 
@@ -123,17 +146,6 @@ def main(argv):
     # Check that camera is valid
     camera = args[0].lower()
     action = args[1].lower()
-
-    # Check that the right static IP has been set
-    my_ip = get_ip()
-    if camera != "romi" and "49.15" not in my_ip:
-        print("********************************************************************")
-        print("      Incorrect ip: %s" % my_ip)
-        print("      Make sure you set up the Wi-Fi connection!!!")
-        print("********************************************************************")
-
-        input("Enter any key")
-        sys.exit()
 
     cameras = []
     if camera == 'all':
@@ -163,6 +175,7 @@ def main(argv):
         cam_ip = camera_def.get('camip')
         cam_user = camera_def.get('user')
         cam_name = camera_def.get('name')
+        cam_ssh = camera_def.get('ssh')
     
         # Override if user entered options
         if options.port_override:
@@ -171,18 +184,20 @@ def main(argv):
             cam_ip = options.addr_override
         if options.user_override:
             cam_user = options.user_override
+        if options.ssh_override:
+            cam_ssh = options.ssh_override
 
         if action == 'start':
 
-            startCamera(port=cam_port, camera_ip=cam_ip, user=cam_user)
+            startCamera(port=cam_port, camera_ip=cam_ip, user=cam_user, ssh=cam_ssh)
 
         elif action == 'stop':
     
-            killCamera(camera_ip=cam_ip, user=cam_user)
+            killCamera(camera_ip=cam_ip, user=cam_user, ssh=cam_ssh)
 
         elif action == 'check':
 
-            checkCamera(camera_ip=cam_ip, user=cam_user, name=cam_name)
+            checkCamera(camera_ip=cam_ip, user=cam_user, name=cam_name, ssh=cam_ssh)
 
 
 if __name__ == "__main__":
