@@ -1,4 +1,18 @@
 {
+  "HALProvider": {
+    "Other Devices": {
+      "BuiltInAccel": {
+        "header": {
+          "open": true
+        }
+      },
+      "RomiGyro": {
+        "header": {
+          "open": true
+        }
+      }
+    }
+  },
   "NTProvider": {
     "types": {
       "/FMSInfo": "FMSInfo",
@@ -11,6 +25,48 @@
       "/LiveWindow/Ungrouped/DigitalOutput[3]": "Digital Output",
       "/LiveWindow/Ungrouped/Scheduler": "Scheduler",
       "/SmartDashboard/SendableChooser[0]": "String Chooser"
+    }
+  },
+  "NetworkTables": {
+    "LiveWindow": {
+      ".status": {
+        "open": true
+      },
+      "Drivetrain": {
+        "open": true
+      },
+      "OnBoardIO": {
+        "open": true
+      },
+      "Ungrouped": {
+        "Encoder[1]": {
+          "open": true
+        },
+        "Scheduler": {
+          "open": true
+        },
+        "open": true
+      }
+    },
+    "Romi": {
+      "open": true
+    },
+    "SmartDashboard": {
+      "SendableChooser[0]": {
+        "open": true
+      }
+    }
+  },
+  "Plot": {
+    "Plot <0>": {
+      "plots": [
+        {
+          "height": 338
+        }
+      ],
+      "window": {
+        "visible": false
+      }
     }
   }
 }
